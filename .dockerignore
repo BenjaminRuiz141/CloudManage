@@ -1,0 +1,19 @@
+target/
+.git/
+.github/
+.idea/
+.vscode/
+.env
+.env.*
+Wallet_*/
+wallet_*/
+*.jks
+*.p12
+
+# Documentation and config
+README.md
+.gitignore
+.dockerignore
+
+# Logs
+*.log
