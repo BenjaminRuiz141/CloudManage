@@ -50,8 +50,6 @@ public class GuiaService {
         try {
             guia = findOrThrow(id);
         } catch (GuiaNotFoundException e) {
-            // FALLBACK: Si no está en DB, intentamos buscar el archivo físico en EFS
-            // Nota: Esto solo funcionará si 'id' es el numeroGuia (ej. G-123)
             try {
                 File archivoEfs = efsService.obtenerArchivoPorNumero(id);
                 String rutaS3 = "fallback/" + id + ".pdf";
