@@ -79,17 +79,24 @@ public class SecurityConfig {
             // Extraemos el valor del Custom Claim 'extension_Role'
             Object roleClaim = jwt.getClaim("extension_Role");
             
+            // Log para depuración - ver qué claim se recibe exactamente
+            System.out.println("DEBUG - extension_Role claim: '" + roleClaim + "'");
+            System.out.println("DEBUG - claim class: " + (roleClaim != null ? roleClaim.getClass().getName() : "null"));
+            
             if (roleClaim == null) {
                 return Collections.emptyList();
             }
 
             // Convertimos el valor del claim en una lista de GrantedAuthority con prefijo 'ROLE_'
+            // Usamos trim() para eliminar espacios en blanco
             if (roleClaim instanceof String role) {
-                return List.of(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
+                String trimmedRole = role.trim();
+                System.out.println("DEBUG - Role after trim: '" + trimmedRole + "'");
+                return List.of(new SimpleGrantedAuthority("ROLE_" + trimmedRole.toUpperCase()));
             } else if (roleClaim instanceof Collection<?> roles) {
                 return roles.stream()
                         .filter(r -> r instanceof String)
-                        .map(r -> new SimpleGrantedAuthority("ROLE_" + ((String) r).toUpperCase()))
+                        .map(r -> new SimpleGrantedAuthority("ROLE_" + ((String) r).trim().toUpperCase()))
                         .collect(Collectors.toList());
             }
 
