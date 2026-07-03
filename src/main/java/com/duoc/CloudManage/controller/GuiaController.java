@@ -31,15 +31,15 @@ public class GuiaController {
                 .body(guiaService.crearGuia(dto));
     }
 
-    // POST /guias/{id}/upload — subir guía de EFS a S3
-    @PostMapping("/{id}/upload")
+    // POST /guias/subir/{id} — subir guía de EFS a S3
+    @PostMapping("/subir/{id}")
     public ResponseEntity<GuiaDespacho> subirS3(
             @PathVariable String id) throws IOException {
         return ResponseEntity.ok(guiaService.subirAws3(id));
     }
 
-    // GET /guias/{id}/download — descargar PDF desde S3
-    @GetMapping("/{id}/download")
+    // GET /guias/descargar/{id} — descargar PDF desde S3
+    @GetMapping("/descargar/{id}")
     public ResponseEntity<byte[]> descargar(
             @PathVariable String id,
             @RequestParam String transportista) throws IOException {
@@ -51,24 +51,24 @@ public class GuiaController {
                 .body(pdf);
     }
 
-    // PUT /guias/{id} — actualizar guía en S3
-    @PutMapping("/{id}")
+    // PUT /guias/actualizar/{id} — actualizar guía en S3
+    @PutMapping("/actualizar/{id}")
     public ResponseEntity<GuiaDespacho> actualizar(
             @PathVariable String id,
             @RequestBody GuiaRequestDTO dto) {
         return ResponseEntity.ok(guiaService.actualizar(id, dto));
     }
 
-    // DELETE /guias/{id} — eliminar guía de S3
-    @DeleteMapping("/{id}")
+    // DELETE /guias/eliminar/{id} — eliminar guía de S3
+    @DeleteMapping("/eliminar/{id}")
     public ResponseEntity<Void> eliminar(
             @PathVariable String id) {
         guiaService.eliminar(id);
         return ResponseEntity.noContent().build();
     }
 
-    // GET /guias — historial con filtros opcionales
-    @GetMapping
+    // GET /guias/consultar — historial con filtros opcionales
+    @GetMapping("/consultar")
     public ResponseEntity<List<GuiaDespacho>> historial(
             @RequestParam(required = false) String transportista,
             @RequestParam(required = false)

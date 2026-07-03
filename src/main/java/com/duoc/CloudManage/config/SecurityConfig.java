@@ -35,7 +35,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // 1. Rol restringido SOLO al endpoint de descarga
                 // Permitimos que tanto el rol de consulta como el de admin puedan descargar
-                .requestMatchers(HttpMethod.GET, "/guias/*/download").hasAnyRole("CONSULTA", "ADMIN")
+                .requestMatchers(HttpMethod.GET, "/guias/descargar/*").hasAnyRole("CONSULTA", "ADMIN")
                 
                 // 2. Rol para el resto de las operaciones (Crear, Subir, Modificar, Eliminar, Consultar historial)
                 .requestMatchers("/guias/**").hasRole("ADMIN")
