@@ -52,14 +52,14 @@ jobs:
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-      - name: SSH commands to deploy
-        run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.USER_SERVER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/cloudmanage:${{ steps.project_version.outputs.version }}
-            docker pull rabbitmq:3-management
-
-            cat > /home/ec2-user/cloudmanage-compose.yml << 'COMPOSE'
+          - name: SSH commands to deploy
+          run: |
+            ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.USER_SERVER }}@${{ secrets.EC2_HOST }} << 'EOF'
+              echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+              docker pull ${{ secrets.DOCKERHUB_USERNAME }}/cloudmanage:${{ steps.project_version.outputs.version }}
+              docker pull rabbitmq:3-management
+  
+              cat > /home/ec2-user/cloudmanage-compose.yml << 'COMPOSE'
             services:
               rabbitmq:
                 image: rabbitmq:3-management
@@ -70,7 +70,7 @@ jobs:
                 environment:
                   RABBITMQ_DEFAULT_USER: admin
                   RABBITMQ_DEFAULT_PASS: admin123
-
+  
               cloudmanage:
                 image: ${{ secrets.DOCKERHUB_USERNAME }}/cloudmanage:${{ steps.project_version.outputs.version }}
                 container_name: cloudmanage
@@ -89,7 +89,7 @@ jobs:
                 volumes:
                   - /mnt/efs:/mnt/efs
             COMPOSE
-
-            docker compose -f /home/ec2-user/cloudmanage-compose.yml down --remove-orphans || true
-            docker compose -f /home/ec2-user/cloudmanage-compose.yml up -d
-          EOF
+  
+              docker compose -f /home/ec2-user/cloudmanage-compose.yml down --remove-orphans || true
+              docker compose -f /home/ec2-user/cloudmanage-compose.yml up -d
+            EOF
