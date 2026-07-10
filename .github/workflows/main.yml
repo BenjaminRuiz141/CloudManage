@@ -95,6 +95,9 @@ jobs:
             echo "Levantando servicios..."
             CMD="sudo docker compose"
             
+            echo "Limpiando contenedores antiguos..."
+            sudo docker rm -f cloudmanage rabbitmq || true
+            
             echo "Usando comando: $CMD"
             $CMD -f /home/ec2-user/cloudmanage-compose.yml down --remove-orphans || true
             $CMD -f /home/ec2-user/cloudmanage-compose.yml up -d
