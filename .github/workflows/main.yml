@@ -93,17 +93,12 @@ jobs:
                   - /mnt/efs:/mnt/efs" > /home/ec2-user/cloudmanage-compose.yml
 
             echo "Levantando servicios..."
-            # Intentar con docker compose (v2) y si falla, intentar con docker-compose (v1)
-            if docker compose version > /dev/null 2>&1; then
-              CMD="docker compose"
-            else
-              CMD="docker-compose"
-            fi
+            CMD="sudo docker compose"
             
             echo "Usando comando: $CMD"
             $CMD -f /home/ec2-user/cloudmanage-compose.yml down --remove-orphans || true
             $CMD -f /home/ec2-user/cloudmanage-compose.yml up -d
             
             echo "Verificando contenedores..."
-            docker ps
+            sudo docker ps
           EOF
