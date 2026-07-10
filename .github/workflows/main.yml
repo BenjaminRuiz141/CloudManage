@@ -55,18 +55,21 @@ jobs:
       - name: SSH commands to deploy
         run: |
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.USER_SERVER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            echo "--- Iniciando despliegue en EC2 ---"
             echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+            
+            echo "Descargando imágenes..."
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/cloudmanage:${{ steps.project_version.outputs.version }}
             docker pull rabbitmq:3-management
 
-            cat > /home/ec2-user/cloudmanage-compose.yml << 'COMPOSE'
-            services:
+            echo "Creando archivo docker-compose.yml..."
+            printf "services:
               rabbitmq:
                 image: rabbitmq:3-management
                 container_name: rabbitmq
                 ports:
-                  - "5672:5672"
-                  - "15672:15672"
+                  - \"5672:5672\"
+                  - \"15672:15672\"
                 environment:
                   RABBITMQ_DEFAULT_USER: admin
                   RABBITMQ_DEFAULT_PASS: admin123
@@ -85,11 +88,22 @@ jobs:
                   SPRING_RABBITMQ_USERNAME: admin
                   SPRING_RABBITMQ_PASSWORD: admin123
                 ports:
-                  - "8080:8080"
+                  - \"8080:8080\"
                 volumes:
-                  - /mnt/efs:/mnt/efs
-            COMPOSE
+                  - /mnt/efs:/mnt/efs" > /home/ec2-user/cloudmanage-compose.yml
 
-                        docker compose -f /home/ec2-user/cloudmanage-compose.yml down --remove-orphans || true
-                        docker compose -f /home/ec2-user/cloudmanage-compose.yml up -d
-            EOF
+            echo "Levantando servicios..."
+            # Intentar con docker compose (v2) y si falla, intentar con docker-compose (v1)
+            if docker compose version > /dev/null 2>&1; then
+              CMD="docker compose"
+            else
+              CMD="docker-compose"
+            fi
+            
+            echo "Usando comando: $CMD"
+            $CMD -f /home/ec2-user/cloudmanage-compose.yml down --remove-orphans || true
+            $CMD -f /home/ec2-user/cloudmanage-compose.yml up -d
+            
+            echo "Verificando contenedores..."
+            docker ps
+          EOF
