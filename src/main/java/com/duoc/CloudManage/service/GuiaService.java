@@ -2,13 +2,17 @@ package com.duoc.CloudManage.service;
 
 import com.duoc.CloudManage.aws.service.S3ServiceImpl;
 import com.duoc.CloudManage.aws.service.EfsService;
+import com.duoc.CloudManage.dto.GuiaMapper;
 import com.duoc.CloudManage.dto.GuiaRequestDTO;
+import com.duoc.CloudManage.dto.GuiaResponseDTO;
 import com.duoc.CloudManage.exceptions.AccesoNoPermitidoException;
 import com.duoc.CloudManage.exceptions.GuiaNotFoundException;
 import com.duoc.CloudManage.model.GuiaDespacho;
 import com.duoc.CloudManage.model.GuiaStatus;
 import com.duoc.CloudManage.repository.GuiaRepository;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -25,9 +29,12 @@ public class GuiaService {
     private final PdfService     pdfService;
     private final EfsService     efsService;
     private final S3ServiceImpl      s3Service;
+    
+    @Autowired
+    private final GuiaProducer guiaProducer;
 
     // Crear guía — genera PDF y lo guarda en EFS
-    public GuiaDespacho crearGuia(GuiaRequestDTO dto) {
+    public GuiaResponseDTO crearGuia(GuiaRequestDTO dto) {
         GuiaDespacho guia = new GuiaDespacho();
         guia.setNumeroGuia(generarNumero());
         guia.setTransportista(dto.getTransportista());
@@ -41,11 +48,14 @@ public class GuiaService {
         String rutaEfs = efsService.guardar(guia.getNumeroGuia(), pdf);
         guia.setRutaEfs(rutaEfs);
 
-        return guiaRepository.save(guia);
+        // 3. Enviar mensaje a la cola de RabbitMQ
+        guiaProducer.publicarGuia(guia);
+
+        return GuiaMapper.toResponse(guiaRepository.save(guia));
     }
 
     // Subir guía desde EFS a S3
-    public GuiaDespacho subirAws3(String id) throws IOException {
+    public GuiaResponseDTO subirAws3(String id) throws IOException {
         GuiaDespacho guia = null;
         try {
             guia = findOrThrow(id);
@@ -61,7 +71,7 @@ public class GuiaService {
                 transientGuia.setNumeroGuia(id);
                 transientGuia.setRutaS3(rutaS3);
                 transientGuia.setEstado(GuiaStatus.SUBIDA);
-                return transientGuia;
+                return GuiaMapper.toResponse(transientGuia);
             } catch (Exception ex) {
                 throw e; // Si tampoco está en disco, lanzamos la excepción original
             }
@@ -85,7 +95,10 @@ public class GuiaService {
         guia.setRutaS3(rutaS3);
         guia.setEstado(GuiaStatus.SUBIDA);
 
-        return guiaRepository.save(guia);
+        // 4. Enviar mensaje a la cola de RabbitMQ
+        guiaProducer.publicarGuia(guia);
+
+        return GuiaMapper.toResponse(guiaRepository.save(guia));
     }
 
     // Descargar PDF desde S3 con validación de permisos
@@ -101,7 +114,7 @@ public class GuiaService {
     }
 
     // Actualizar guía en S3
-    public GuiaDespacho actualizar(String id, GuiaRequestDTO dto) {
+    public GuiaResponseDTO actualizar(String id, GuiaRequestDTO dto) {
         GuiaDespacho guia = findOrThrow(id);
 
         // Actualizar campos modificables
@@ -119,7 +132,10 @@ public class GuiaService {
             throw new RuntimeException("Error al actualizar el archivo en S3", e);
         }
 
-        return guiaRepository.save(guia);
+        // Enviar mensaje a la cola de RabbitMQ
+        guiaProducer.publicarGuia(guia);
+
+        return GuiaMapper.toResponse(guiaRepository.save(guia));
     }
 
     // Eliminar guía de S3
@@ -129,24 +145,27 @@ public class GuiaService {
         s3Service.deleteS3Object(guia.getRutaS3());
         guia.setEstado(GuiaStatus.ELIMINADA);
 
+        // Enviar mensaje a la cola de RabbitMQ
+        guiaProducer.publicarGuia(guia);
+
         guiaRepository.save(guia);
     }
 
     // Historial con filtros opcionales
-    public List<GuiaDespacho> historial(String transportista, LocalDate fecha) {
+    public List<GuiaResponseDTO> historial(String transportista, LocalDate fecha) {
         if (transportista != null && fecha != null)
-            return guiaRepository.findByTransportistaAndFecha(transportista, fecha);
+            return GuiaMapper.toResponseList(guiaRepository.findByTransportistaAndFecha(transportista, fecha));
         if (transportista != null)
-            return guiaRepository.findByTransportista(transportista);
+            return GuiaMapper.toResponseList(guiaRepository.findByTransportista(transportista));
         if (fecha != null)
-            return guiaRepository.findByFecha(fecha);
-        return guiaRepository.findAll();
+            return GuiaMapper.toResponseList(guiaRepository.findByFecha(fecha));
+        return GuiaMapper.toResponseList(guiaRepository.findAll());
     }
 
     // Buscar guía por número de guía
-    public GuiaDespacho buscarPorNumero(String numeroGuia) {
-        return guiaRepository.findByNumeroGuia(numeroGuia)
-                .orElseThrow(() -> new GuiaNotFoundException("Guía no encontrada: " + numeroGuia));
+    public GuiaResponseDTO buscarPorNumero(String numeroGuia) {
+        return GuiaMapper.toResponse(guiaRepository.findByNumeroGuia(numeroGuia)
+                .orElseThrow(() -> new GuiaNotFoundException("Guía no encontrada: " + numeroGuia)));
     }
 
     // ── Utilidades ───────────────────────────────────────────────────

@@ -1,8 +1,8 @@
 package com.duoc.CloudManage.controller;
 
 
+import com.duoc.CloudManage.dto.GuiaResponseDTO;
 import com.duoc.CloudManage.dto.GuiaRequestDTO;
-import com.duoc.CloudManage.model.GuiaDespacho;
 import com.duoc.CloudManage.service.GuiaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -24,7 +24,7 @@ public class GuiaController {
 
     // POST /guias — crear guía y guardar PDF en EFS
     @PostMapping
-    public ResponseEntity<GuiaDespacho> crear(
+    public ResponseEntity<GuiaResponseDTO> crear(
             @RequestBody GuiaRequestDTO dto) {
         return ResponseEntity
                 .status(201)
@@ -33,7 +33,7 @@ public class GuiaController {
 
     // POST /guias/subir/{id} — subir guía de EFS a S3
     @PostMapping("/subir/{id}")
-    public ResponseEntity<GuiaDespacho> subirS3(
+    public ResponseEntity<GuiaResponseDTO> subirS3(
             @PathVariable String id) throws IOException {
         return ResponseEntity.ok(guiaService.subirAws3(id));
     }
@@ -53,7 +53,7 @@ public class GuiaController {
 
     // PUT /guias/actualizar/{id} — actualizar guía en S3
     @PutMapping("/actualizar/{id}")
-    public ResponseEntity<GuiaDespacho> actualizar(
+    public ResponseEntity<GuiaResponseDTO> actualizar(
             @PathVariable String id,
             @RequestBody GuiaRequestDTO dto) {
         return ResponseEntity.ok(guiaService.actualizar(id, dto));
@@ -69,7 +69,7 @@ public class GuiaController {
 
     // GET /guias/consultar — historial con filtros opcionales
     @GetMapping("/consultar")
-    public ResponseEntity<List<GuiaDespacho>> historial(
+    public ResponseEntity<List<GuiaResponseDTO>> historial(
             @RequestParam(required = false) String transportista,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
@@ -78,7 +78,7 @@ public class GuiaController {
 
     // GET /guias/buscar?numeroGuia=G-1234567890 — buscar guía por número
     @GetMapping("/buscar")
-    public ResponseEntity<GuiaDespacho> buscarPorNumero(
+    public ResponseEntity<GuiaResponseDTO> buscarPorNumero(
             @RequestParam String numeroGuia) {
         return ResponseEntity.ok(guiaService.buscarPorNumero(numeroGuia));
     }

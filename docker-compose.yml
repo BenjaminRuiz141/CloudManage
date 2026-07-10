@@ -1,0 +1,33 @@
+services:
+    rabbitmq:
+        image: rabbitmq:3-management
+        container_name: rabbitmq
+        ports:
+            - "5672:5672"
+            - "15672:15672"
+        environment:
+            RABBITMQ_DEFAULT_USER: admin
+            RABBITMQ_DEFAULT_PASS: admin123
+
+    cloudmanage:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: cloudmanage
+        depends_on:
+            - rabbitmq
+        env_file:
+            - .env
+        environment:
+            SERVER_PORT: 8080
+            SPRING_RABBITMQ_HOST: rabbitmq
+            SPRING_RABBITMQ_PORT: 5672
+            SPRING_RABBITMQ_USERNAME: admin
+            SPRING_RABBITMQ_PASSWORD: admin123
+        ports:
+            - "8080:8080"
+        volumes:
+            - efs-data:/mnt/efs
+
+volumes:
+    efs-data:

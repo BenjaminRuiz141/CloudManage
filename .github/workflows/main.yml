@@ -17,10 +17,11 @@ jobs:
         uses: actions/checkout@v6.0.3
 
       - name: Read project version
+        id: project_version
         run: |
           chmod +x mvnw
           VERSION=$(./mvnw -q -DforceStdout help:evaluate -Dexpression=project.version)
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Log in to DockerHub
         uses: docker/login-action@v4.2.0
@@ -30,11 +31,11 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/cloudmanage:${{ env.VERSION }} -t ${{ secrets.DOCKERHUB_USERNAME }}/cloudmanage:latest .
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/cloudmanage:${{ steps.project_version.outputs.version }} -t ${{ secrets.DOCKERHUB_USERNAME }}/cloudmanage:latest .
 
       - name: Push Docker Image
         run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/cloudmanage:${{ env.VERSION }}
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/cloudmanage:${{ steps.project_version.outputs.version }}
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/cloudmanage:latest
 
       - name: Set up AWS credentials
@@ -55,7 +56,40 @@ jobs:
         run: |
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.USER_SERVER }}@${{ secrets.EC2_HOST }} << 'EOF'
             echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/cloudmanage:${{ env.VERSION }}
-            docker stop cloudmanage || true && docker rm cloudmanage || true
-            docker run -d --name cloudmanage -p 8080:8080 -v /mnt/efs:/mnt/efs --env-file /home/ec2-user/.env ${{ secrets.DOCKERHUB_USERNAME }}/cloudmanage:${{ env.VERSION }}
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/cloudmanage:${{ steps.project_version.outputs.version }}
+            docker pull rabbitmq:3-management
+
+            cat > /home/ec2-user/cloudmanage-compose.yml << 'COMPOSE'
+            services:
+              rabbitmq:
+                image: rabbitmq:3-management
+                container_name: rabbitmq
+                ports:
+                  - "5672:5672"
+                  - "15672:15672"
+                environment:
+                  RABBITMQ_DEFAULT_USER: admin
+                  RABBITMQ_DEFAULT_PASS: admin123
+
+              cloudmanage:
+                image: ${{ secrets.DOCKERHUB_USERNAME }}/cloudmanage:${{ steps.project_version.outputs.version }}
+                container_name: cloudmanage
+                depends_on:
+                  - rabbitmq
+                env_file:
+                  - /home/ec2-user/.env
+                environment:
+                  SERVER_PORT: 8080
+                  SPRING_RABBITMQ_HOST: rabbitmq
+                  SPRING_RABBITMQ_PORT: 5672
+                  SPRING_RABBITMQ_USERNAME: admin
+                  SPRING_RABBITMQ_PASSWORD: admin123
+                ports:
+                  - "8080:8080"
+                volumes:
+                  - /mnt/efs:/mnt/efs
+            COMPOSE
+
+            docker compose -f /home/ec2-user/cloudmanage-compose.yml down --remove-orphans || true
+            docker compose -f /home/ec2-user/cloudmanage-compose.yml up -d
           EOF
