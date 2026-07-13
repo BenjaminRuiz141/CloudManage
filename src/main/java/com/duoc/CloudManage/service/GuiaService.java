@@ -36,7 +36,13 @@ public class GuiaService {
     // Crear guía — genera PDF y lo guarda en EFS
     public GuiaResponseDTO crearGuia(GuiaRequestDTO dto) {
         GuiaDespacho guia = new GuiaDespacho();
-        guia.setNumeroGuia(generarNumero());
+        
+        if (dto.getNumeroGuia() != null && !dto.getNumeroGuia().isBlank()) {
+            guia.setNumeroGuia(dto.getNumeroGuia());
+        } else {
+            guia.setNumeroGuia(generarNumero());
+        }
+        
         guia.setTransportista(dto.getTransportista());
         guia.setFecha(LocalDate.now());
         guia.setEstado(GuiaStatus.PENDIENTE);
